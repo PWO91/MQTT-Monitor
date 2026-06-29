@@ -11,9 +11,15 @@
 #include <QMainWindow>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QFileDialog>
 #include <QGuiApplication>
+#include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QListWidget>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QSettings>
 #include <QTabWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -136,6 +142,8 @@ static QString itemTopic(QTreeWidgetItem* item) {
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
+    app.setOrganizationName("mcrTechLab");
+    app.setApplicationName("MQTTMonitor");
 
     QMainWindow window;
     window.setWindowTitle("MQTT Monitor");
@@ -421,6 +429,104 @@ int main(int argc, char* argv[]) {
         }
 
         connectBtn->setEnabled(true);
+    });
+
+    // --- Zapis/odczyt ustawień ---
+    auto collectJson = [&]() -> QJsonObject {
+        QJsonArray subs;
+        for (int i = 0; i < subList->count(); ++i)
+            subs.append(subList->item(i)->text());
+        return QJsonObject{
+            {"broker",        addrEdit->text()},
+            {"port",          portSpin->value()},
+            {"user",          userEdit->text()},
+            {"password",      passEdit->text()},
+            {"subscriptions", subs}
+        };
+    };
+
+    auto applyJson = [&](const QJsonObject& obj) {
+        addrEdit->setText(obj["broker"].toString());
+        portSpin->setValue(obj["port"].toInt(1883));
+        userEdit->setText(obj["user"].toString());
+        passEdit->setText(obj["password"].toString());
+        subList->clear();
+        for (const auto& v : obj["subscriptions"].toArray())
+            subList->addItem(v.toString());
+        if (subList->count() == 0)
+            subList->addItem("#");
+    };
+
+    // Auto-restore ostatniej sesji
+    {
+        QSettings s;
+        if (s.contains("broker")) {
+            QJsonObject obj;
+            obj["broker"]   = s.value("broker").toString();
+            obj["port"]     = s.value("port", 1883).toInt();
+            obj["user"]     = s.value("user").toString();
+            obj["password"] = s.value("password").toString();
+            QJsonArray subs;
+            for (const auto& t : s.value("subscriptions").toStringList())
+                subs.append(t);
+            obj["subscriptions"] = subs;
+            applyJson(obj);
+        }
+    }
+
+    // Auto-zapis przy połączeniu
+    QObject::connect(connectBtn, &QPushButton::clicked, [&]() {
+        if (!client || !client->is_connected()) {
+            QSettings s;
+            auto obj = collectJson();
+            s.setValue("broker",        obj["broker"].toString());
+            s.setValue("port",          obj["port"].toInt());
+            s.setValue("user",          obj["user"].toString());
+            s.setValue("password",      obj["password"].toString());
+            QStringList sl;
+            for (const auto& v : obj["subscriptions"].toArray())
+                sl << v.toString();
+            s.setValue("subscriptions", sl);
+        }
+    });
+
+    // --- Menu Plik ---
+    QMenu* fileMenu = window.menuBar()->addMenu("Plik");
+
+    QAction* saveAct = fileMenu->addAction("Zapisz profil...");
+    saveAct->setShortcut(QKeySequence::Save);
+    QObject::connect(saveAct, &QAction::triggered, [&]() {
+        QString path = QFileDialog::getSaveFileName(
+            &window, "Zapisz profil", QDir::homePath(), "JSON (*.json)");
+        if (path.isEmpty()) return;
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly)) {
+            QMessageBox::warning(&window, "Błąd", "Nie można zapisać pliku.");
+            return;
+        }
+        f.write(QJsonDocument(collectJson()).toJson());
+        window.statusBar()->showMessage(QString("Zapisano: %1").arg(path));
+    });
+
+    QAction* loadAct = fileMenu->addAction("Wczytaj profil...");
+    loadAct->setShortcut(QKeySequence::Open);
+    QObject::connect(loadAct, &QAction::triggered, [&]() {
+        QString path = QFileDialog::getOpenFileName(
+            &window, "Wczytaj profil", QDir::homePath(), "JSON (*.json)");
+        if (path.isEmpty()) return;
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(&window, "Błąd", "Nie można otworzyć pliku.");
+            return;
+        }
+        QJsonParseError err;
+        auto doc = QJsonDocument::fromJson(f.readAll(), &err);
+        if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+            QMessageBox::warning(&window, "Błąd", "Nieprawidłowy plik JSON.");
+            return;
+        }
+        applyJson(doc.object());
+        window.statusBar()->showMessage(QString("Wczytano: %1").arg(path));
     });
 
     window.show();

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(MyProject)
+project(MQTTMonitor)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
@@ -7,9 +7,14 @@ set(CMAKE_AUTOMOC ON)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(PahoMqttCpp REQUIRED)
 
-add_executable(my_app src/main.cpp)
+add_executable(MQTTMonitor MACOSX_BUNDLE src/main.cpp)
 
-target_link_libraries(my_app
+set_target_properties(MQTTMonitor PROPERTIES
+    MACOSX_BUNDLE_BUNDLE_NAME "MQTT Monitor"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.mcrtechlab.mqttmonitor"
+)
+
+target_link_libraries(MQTTMonitor
     Qt6::Widgets
     PahoMqttCpp::paho-mqttpp3-static
 )
