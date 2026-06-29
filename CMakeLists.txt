@@ -19,10 +19,34 @@ target_link_libraries(MQTTMonitor
     PahoMqttCpp::paho-mqttpp3-static
 )
 
-# --- macOS DMG installer ---
+# --- macOS post-build: fix Qt paths + sign ---
 if(APPLE)
     find_program(MACDEPLOYQT_EXECUTABLE macdeployqt
         HINTS /opt/homebrew/bin /opt/homebrew/opt/qt/bin)
+
+    # Linker sometimes embeds absolute Homebrew paths instead of @rpath.
+    # Patch both /opt/homebrew/lib and /opt/homebrew/opt/qtbase/lib variants.
+    set(QT_FW "@executable_path/../Frameworks")
+    foreach(mod Widgets Gui Core)
+        string(TOLOWER ${mod} modlc)
+        set(_fw "Qt${mod}.framework/Versions/A/Qt${mod}")
+        add_custom_command(TARGET MQTTMonitor POST_BUILD
+            COMMAND install_name_tool
+                -change "/opt/homebrew/lib/${_fw}"
+                        "${QT_FW}/${_fw}"
+                -change "/opt/homebrew/opt/qtbase/lib/${_fw}"
+                        "${QT_FW}/${_fw}"
+                "$<TARGET_FILE:MQTTMonitor>" || true
+            COMMENT "Patching Qt${mod} rpath"
+        )
+    endforeach()
+    add_custom_command(TARGET MQTTMonitor POST_BUILD
+        COMMAND codesign --force --deep --sign -
+            "$<TARGET_BUNDLE_DIR:MQTTMonitor>"
+        COMMENT "Ad-hoc signing bundle"
+    )
+
+    # --- macOS DMG installer ---
 
     add_custom_target(dmg
         # macdeployqt dodaje brakujące frameworki Qt (np. QtWidgets, QtSvg)
