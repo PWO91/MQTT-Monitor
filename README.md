@@ -2,6 +2,8 @@
 
 A cross-platform desktop MQTT client built with Qt6 and Paho MQTT C++. Designed for developers who need to inspect, debug and publish MQTT messages in real time.
 
+![MQTT Monitor screenshot](main.png)
+
 ## Features
 
 - **Topic tree** — live tree view of all received topics with child counts, collapsed by default
