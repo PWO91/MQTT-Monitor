@@ -368,11 +368,14 @@ int main(int argc, char* argv[]) {
     formatCombo->addItem("Base64", 3);
     formatCombo->setFixedWidth(80);
 
+    QPushButton* copyTopicBtn = new QPushButton("Kopiuj temat");
+    copyTopicBtn->setFixedWidth(95);
     QPushButton* copyBtn = new QPushButton("Kopiuj");
     copyBtn->setFixedWidth(70);
 
     detailHeader->addWidget(topicLabel);
     detailHeader->addStretch();
+    detailHeader->addWidget(copyTopicBtn);
     detailHeader->addWidget(new QLabel("Format:"));
     detailHeader->addWidget(formatCombo);
     detailHeader->addWidget(copyBtn);
@@ -499,9 +502,15 @@ int main(int argc, char* argv[]) {
         histDetail->setPlainText(item->data(Qt::UserRole).toString());
     });
 
+    QObject::connect(copyTopicBtn, &QPushButton::clicked, [&]() {
+        if (currentTopic.isEmpty()) return;
+        QGuiApplication::clipboard()->setText(currentTopic);
+        window.statusBar()->showMessage(QString("Skopiowano temat: %1").arg(currentTopic));
+    });
+
     QObject::connect(copyBtn, &QPushButton::clicked, [&]() {
         QGuiApplication::clipboard()->setText(payloadView->toPlainText());
-        window.statusBar()->showMessage("Skopiowano do schowka.");
+        window.statusBar()->showMessage("Skopiowano wiadomość do schowka.");
     });
 
     QObject::connect(tree, &QTreeWidget::itemClicked, [&](QTreeWidgetItem* item, int) {
