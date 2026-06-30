@@ -197,20 +197,30 @@ static QString formatHex(const QString& raw) {
     return out.trimmed();
 }
 
-// Filter tree: show items whose full topic path contains text (case-insensitive)
-static bool applyFilter(QTreeWidgetItem* item, const QString& text) {
+// mode: 0=topic, 1=value, 2=both
+static bool applyFilter(QTreeWidgetItem* item, const QString& text,
+                        int mode, const TopicTree* cb)
+{
     bool anyChildVisible = false;
     for (int i = 0; i < item->childCount(); ++i)
-        if (applyFilter(item->child(i), text)) anyChildVisible = true;
+        if (applyFilter(item->child(i), text, mode, cb)) anyChildVisible = true;
 
     if (item->parent() == nullptr) {  // root
         item->setHidden(false);
         return true;
     }
 
-    bool match = text.isEmpty()
-        || itemTopic(item).contains(text, Qt::CaseInsensitive)
-        || anyChildVisible;
+    if (text.isEmpty()) {
+        item->setHidden(false);
+        return true;
+    }
+
+    bool topicMatch = (mode == 0 || mode == 2)
+        && itemTopic(item).contains(text, Qt::CaseInsensitive);
+    bool valueMatch = (mode == 1 || mode == 2) && cb
+        && cb->payloadFor(itemTopic(item)).contains(text, Qt::CaseInsensitive);
+
+    bool match = anyChildVisible || topicMatch || valueMatch;
     item->setHidden(!match);
     return match;
 }
@@ -330,10 +340,16 @@ int main(int argc, char* argv[]) {
     // ── Search bar ──────────────────────────────────────────────────────────
     QHBoxLayout* searchRow = new QHBoxLayout;
     QLineEdit* searchEdit = new QLineEdit;
-    searchEdit->setPlaceholderText("Szukaj tematu…");
+    searchEdit->setPlaceholderText("Szukaj…");
     searchEdit->setClearButtonEnabled(true);
+    QComboBox* searchModeCombo = new QComboBox;
+    searchModeCombo->addItem("Temat",   0);
+    searchModeCombo->addItem("Wartość", 1);
+    searchModeCombo->addItem("Oba",     2);
+    searchModeCombo->setFixedWidth(80);
     searchRow->addWidget(new QLabel("Filtr:"));
     searchRow->addWidget(searchEdit);
+    searchRow->addWidget(searchModeCombo);
     rootLayout->addLayout(searchRow);
 
     // ── Splitter: tree | detail panel ───────────────────────────────────────
@@ -552,10 +568,14 @@ int main(int argc, char* argv[]) {
     });
 
     // Search/filter
-    QObject::connect(searchEdit, &QLineEdit::textChanged, [&](const QString& text) {
+    auto runFilter = [&]() {
+        const QString text = searchEdit->text();
+        const int mode = searchModeCombo->currentData().toInt();
         for (int i = 0; i < tree->topLevelItemCount(); ++i)
-            applyFilter(tree->topLevelItem(i), text);
-    });
+            applyFilter(tree->topLevelItem(i), text, mode, cb.get());
+    };
+    QObject::connect(searchEdit, &QLineEdit::textChanged, [&](const QString&) { runFilter(); });
+    QObject::connect(searchModeCombo, &QComboBox::currentIndexChanged, [&](int) { runFilter(); });
 
     // Connect / disconnect
     QObject::connect(connectBtn, &QPushButton::clicked, [&]() {
