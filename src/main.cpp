@@ -30,8 +30,10 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QSplitter>
+#include <QFormLayout>
 #include <QStatusBar>
 #include <QStyle>
+#include <QTimer>
 #include <QStringList>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
@@ -60,6 +62,7 @@ class TopicTree : public mqtt::callback {
     std::map<QString, QTreeWidgetItem*> nodes_;
     std::map<QString, std::deque<MsgEntry>> history_;
     QString brokerAddr_;
+    int rxCount_ = 0;
 
 public:
     explicit TopicTree(QTreeWidget* w) : widget_(w) {}
@@ -69,10 +72,15 @@ public:
         nodes_.clear();
         history_.clear();
         brokerAddr_ = brokerAddr;
+        rxCount_ = 0;
         root_ = new QTreeWidgetItem(widget_);
         root_->setText(0, brokerAddr);
         root_->setExpanded(false);
     }
+
+    int  rxCount()     const { return rxCount_; }
+    int  topicCount()  const { return (int)history_.size(); }
+    int  nodeCount()   const { return (int)nodes_.size(); }
 
     // Returns latest payload for topic, or empty string
     QString payloadFor(const QString& topic) const {
@@ -101,6 +109,7 @@ public:
         bool    retained = msg->is_retained();
         QString ts       = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
 
+        ++rxCount_;
         QMetaObject::invokeMethod(widget_, [this, topic, payload, retained, ts]() {
             insert(topic, payload, retained, ts);
         }, Qt::QueuedConnection);
@@ -239,6 +248,8 @@ int main(int argc, char* argv[]) {
 
     std::unique_ptr<TopicTree> cb;
     std::shared_ptr<mqtt::async_client> client;
+    int txCount = 0;
+    QDateTime connectedAt;
 
     // ── Top tabs ────────────────────────────────────────────────────────────
     QTabWidget* topTabs = new QTabWidget;
@@ -456,6 +467,33 @@ int main(int argc, char* argv[]) {
 
     bottomTabs->addTab(publishTab, "Publish");
 
+    // ── Diagnostyka tab ───────────────────────────────────────────────────────
+    QWidget* diagTab = new QWidget;
+    QVBoxLayout* diagLayout = new QVBoxLayout(diagTab);
+    diagLayout->setContentsMargins(12, 8, 12, 8);
+
+    QFormLayout* diagForm = new QFormLayout;
+    diagForm->setHorizontalSpacing(20);
+    diagForm->setVerticalSpacing(6);
+
+    auto makeStat = [&](const QString& label) -> QLabel* {
+        auto* val = new QLabel("—");
+        val->setFont(QFont("Menlo, Monaco, Courier New", 12));
+        diagForm->addRow(label, val);
+        return val;
+    };
+
+    QLabel* statRx       = makeStat("Odebrano wiadomości:");
+    QLabel* statTx       = makeStat("Wysłano wiadomości:");
+    QLabel* statTopics   = makeStat("Unikalne tematy:");
+    QLabel* statNodes    = makeStat("Węzły w drzewie:");
+    QLabel* statUptime   = makeStat("Czas połączenia:");
+    QLabel* statConnTime = makeStat("Połączono od:");
+
+    diagLayout->addLayout(diagForm);
+    diagLayout->addStretch();
+    bottomTabs->addTab(diagTab, "Diagnostyka");
+
     splitter->addWidget(bottomTabs);
     splitter->setStretchFactor(0, 3);
     splitter->setStretchFactor(1, 1);
@@ -466,6 +504,34 @@ int main(int argc, char* argv[]) {
 
     // ── Logic ─────────────────────────────────────────────────────────────────
     QString currentTopic;
+
+    // Diagnostics: refresh stats every second
+    auto updateDiag = [&]() {
+        if (!cb || !client || !client->is_connected()) {
+            statRx->setText("—");
+            statTx->setText("—");
+            statTopics->setText("—");
+            statNodes->setText("—");
+            statUptime->setText("—");
+            statConnTime->setText("—");
+            return;
+        }
+        statRx->setText(QString::number(cb->rxCount()));
+        statTx->setText(QString::number(txCount));
+        statTopics->setText(QString::number(cb->topicCount()));
+        statNodes->setText(QString::number(cb->nodeCount()));
+        statConnTime->setText(connectedAt.toString("hh:mm:ss"));
+        qint64 secs = connectedAt.secsTo(QDateTime::currentDateTime());
+        statUptime->setText(QString("%1:%2:%3")
+            .arg(secs / 3600, 2, 10, QChar('0'))
+            .arg((secs % 3600) / 60, 2, 10, QChar('0'))
+            .arg(secs % 60, 2, 10, QChar('0')));
+    };
+
+    QTimer* diagTimer = new QTimer(&window);
+    diagTimer->setInterval(1000);
+    QObject::connect(diagTimer, &QTimer::timeout, [&]() { updateDiag(); });
+    diagTimer->start();
 
     // Formats raw payload according to selected format
     auto formatPayload = [&](const QString& raw) -> QString {
@@ -559,6 +625,7 @@ int main(int argc, char* argv[]) {
             bool retained = retainedCheck->isChecked();
             auto msg = mqtt::make_message(topic.toStdString(), message.toStdString(), qos, retained);
             client->publish(msg)->wait();
+            ++txCount;
             window.statusBar()->showMessage(
                 QString("Opublikowano na '%1' (QoS %2%3)")
                     .arg(topic).arg(qos).arg(retained ? ", retained" : ""));
@@ -633,6 +700,8 @@ int main(int argc, char* argv[]) {
                 topics << subList->item(i)->text();
             for (const QString& t : topics)
                 client->subscribe(t.toStdString(), 0)->wait();
+            txCount = 0;
+            connectedAt = QDateTime::currentDateTime();
             connectBtn->setText("Rozłącz");
             window.statusBar()->showMessage(
                 QString("Połączono z %1:%2 — %3 subskrypcji").arg(addr).arg(port).arg(topics.size()));
