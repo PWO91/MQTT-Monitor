@@ -24,8 +24,8 @@ if(APPLE)
     find_program(MACDEPLOYQT_EXECUTABLE macdeployqt
         HINTS /opt/homebrew/bin /opt/homebrew/opt/qt/bin)
 
-    # Linker sometimes embeds absolute Homebrew paths instead of @rpath.
-    # Patch both /opt/homebrew/lib and /opt/homebrew/opt/qtbase/lib variants.
+    # Linker sometimes embeds absolute Homebrew paths instead of @rpath —
+    # patch both /opt/homebrew/lib and /opt/homebrew/opt/qtbase/lib variants.
     set(QT_FW "@executable_path/../Frameworks")
     foreach(mod Widgets Gui Core)
         string(TOLOWER ${mod} modlc)
@@ -49,22 +49,19 @@ if(APPLE)
     # --- macOS DMG installer ---
 
     add_custom_target(dmg
-        # macdeployqt dodaje brakujące frameworki Qt (np. QtWidgets, QtSvg)
-        # BEZ wcześniejszego rm -rf Frameworks — usunięcie Frameworks powoduje
-        # że macdeployqt pomija @executable_path deps jako "już wdrożone"
+        # Run macdeployqt WITHOUT rm -rf Frameworks first — removing Frameworks causes
+        # macdeployqt to skip @executable_path deps treating them as already deployed
         COMMAND ${MACDEPLOYQT_EXECUTABLE}
                 "$<TARGET_BUNDLE_DIR:MQTTMonitor>"
                 -libpath=$<TARGET_FILE_DIR:Qt6::Core>/../../..
                 -verbose=1
-        # ditto zachowuje symlinki i xattry wewnątrz frameworków Qt
         COMMAND rm -rf "${CMAKE_BINARY_DIR}/dmg_staging"
         COMMAND mkdir -p "${CMAKE_BINARY_DIR}/dmg_staging"
         COMMAND ditto "$<TARGET_BUNDLE_DIR:MQTTMonitor>"
                 "${CMAKE_BINARY_DIR}/dmg_staging/MQTT Monitor.app"
-        # QtGui zależy od QtDBus, ale macdeployqt go pomija — kopiujemy ręcznie
+        # QtGui depends on QtDBus but macdeployqt omits it — copy manually
         COMMAND ditto "$<TARGET_FILE_DIR:Qt6::DBus>/../.."
                 "${CMAKE_BINARY_DIR}/dmg_staging/MQTT Monitor.app/Contents/Frameworks/QtDBus.framework"
-        # Podpisanie ad-hoc po skopiowaniu (na plikach które trafią do DMG)
         COMMAND codesign --force --deep --sign -
                 "${CMAKE_BINARY_DIR}/dmg_staging/MQTT Monitor.app"
         COMMAND ln -sf /Applications

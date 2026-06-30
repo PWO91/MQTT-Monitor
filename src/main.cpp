@@ -262,7 +262,7 @@ int main(int argc, char* argv[]) {
     row->setContentsMargins(4, 4, 4, 4);
 
     QLineEdit* addrEdit = new QLineEdit(envOr("MQTT_BROKER", "localhost"));
-    addrEdit->setPlaceholderText("Adres");
+    addrEdit->setPlaceholderText("Host");
     addrEdit->setMinimumWidth(120);
 
     QSpinBox* portSpin = new QSpinBox;
@@ -275,25 +275,25 @@ int main(int argc, char* argv[]) {
     clientIdEdit->setMinimumWidth(90);
 
     QLineEdit* userEdit = new QLineEdit(envOr("MQTT_USER", ""));
-    userEdit->setPlaceholderText("Użytkownik");
+    userEdit->setPlaceholderText("Username");
     userEdit->setMinimumWidth(90);
 
     QLineEdit* passEdit = new QLineEdit(envOr("MQTT_PASSWORD", ""));
-    passEdit->setPlaceholderText("Hasło");
+    passEdit->setPlaceholderText("Password");
     passEdit->setEchoMode(QLineEdit::Password);
     passEdit->setMinimumWidth(90);
 
     QCheckBox* tlsCheck = new QCheckBox("TLS");
-    QPushButton* connectBtn = new QPushButton("Połącz");
+    QPushButton* connectBtn = new QPushButton("Connect");
 
-    row->addWidget(new QLabel("Adres:"));  row->addWidget(addrEdit);
-    row->addWidget(new QLabel("Port:"));   row->addWidget(portSpin);
-    row->addWidget(new QLabel("ID:"));     row->addWidget(clientIdEdit);
-    row->addWidget(new QLabel("User:"));   row->addWidget(userEdit);
-    row->addWidget(new QLabel("Hasło:"));  row->addWidget(passEdit);
+    row->addWidget(new QLabel("Host:"));     row->addWidget(addrEdit);
+    row->addWidget(new QLabel("Port:"));     row->addWidget(portSpin);
+    row->addWidget(new QLabel("ID:"));       row->addWidget(clientIdEdit);
+    row->addWidget(new QLabel("User:"));     row->addWidget(userEdit);
+    row->addWidget(new QLabel("Password:")); row->addWidget(passEdit);
     row->addWidget(tlsCheck);
     row->addWidget(connectBtn);
-    topTabs->addTab(connTab, "Połączenie");
+    topTabs->addTab(connTab, "Connection");
 
     // TLS toggles default port
     QObject::connect(tlsCheck, &QCheckBox::toggled, [&](bool on) {
@@ -313,14 +313,14 @@ int main(int argc, char* argv[]) {
 
     QHBoxLayout* subInputRow = new QHBoxLayout;
     QLineEdit* subEdit = new QLineEdit;
-    subEdit->setPlaceholderText("Temat, np. sensors/# lub home/lamp");
-    QPushButton* subAddBtn = new QPushButton("Dodaj");
-    QPushButton* subRemBtn = new QPushButton("Usuń");
+    subEdit->setPlaceholderText("Topic, e.g. sensors/# or home/lamp");
+    QPushButton* subAddBtn = new QPushButton("Add");
+    QPushButton* subRemBtn = new QPushButton("Remove");
     subInputRow->addWidget(subEdit);
     subInputRow->addWidget(subAddBtn);
     subInputRow->addWidget(subRemBtn);
     subLayout->addLayout(subInputRow);
-    topTabs->addTab(subTab, "Subskrypcje");
+    topTabs->addTab(subTab, "Subscriptions");
 
     QObject::connect(subAddBtn, &QPushButton::clicked, [&]() {
         QString t = subEdit->text().trimmed();
@@ -331,7 +331,7 @@ int main(int argc, char* argv[]) {
         subEdit->clear();
         if (client && client->is_connected()) {
             try { client->subscribe(t.toStdString(), 0)->wait(); } catch (...) {}
-            window.statusBar()->showMessage(QString("Zasubskrybowano: %1").arg(t));
+            window.statusBar()->showMessage(QString("Subscribed: %1").arg(t));
         }
     });
     QObject::connect(subEdit, &QLineEdit::returnPressed, subAddBtn, &QPushButton::click);
@@ -343,7 +343,7 @@ int main(int argc, char* argv[]) {
             try { client->unsubscribe(t.toStdString())->wait(); } catch (...) {}
         }
         delete item;
-        window.statusBar()->showMessage(QString("Odsubskrybowano: %1").arg(t));
+        window.statusBar()->showMessage(QString("Unsubscribed: %1").arg(t));
     });
 
     rootLayout->addWidget(topTabs);
@@ -351,14 +351,14 @@ int main(int argc, char* argv[]) {
     // ── Search bar ──────────────────────────────────────────────────────────
     QHBoxLayout* searchRow = new QHBoxLayout;
     QLineEdit* searchEdit = new QLineEdit;
-    searchEdit->setPlaceholderText("Szukaj…");
+    searchEdit->setPlaceholderText("Search…");
     searchEdit->setClearButtonEnabled(true);
     QComboBox* searchModeCombo = new QComboBox;
-    searchModeCombo->addItem("Temat",   0);
-    searchModeCombo->addItem("Wartość", 1);
-    searchModeCombo->addItem("Oba",     2);
+    searchModeCombo->addItem("Topic", 0);
+    searchModeCombo->addItem("Value", 1);
+    searchModeCombo->addItem("Both",  2);
     searchModeCombo->setFixedWidth(80);
-    searchRow->addWidget(new QLabel("Filtr:"));
+    searchRow->addWidget(new QLabel("Filter:"));
     searchRow->addWidget(searchEdit);
     searchRow->addWidget(searchModeCombo);
     rootLayout->addLayout(searchRow);
@@ -368,7 +368,7 @@ int main(int argc, char* argv[]) {
 
     QTreeWidget* tree = new QTreeWidget;
     tree->setColumnCount(3);
-    tree->setHeaderLabels({"Temat", "Ostatnia wartość", "Czas"});
+    tree->setHeaderLabels({"Topic", "Last value", "Time"});
     tree->header()->setStretchLastSection(false);
     tree->header()->setSectionResizeMode(0, QHeaderView::Interactive);
     tree->header()->setSectionResizeMode(1, QHeaderView::Stretch);
@@ -385,7 +385,7 @@ int main(int argc, char* argv[]) {
     detailLayout->setContentsMargins(4, 4, 4, 4);
 
     QHBoxLayout* detailHeader = new QHBoxLayout;
-    QLabel* topicLabel = new QLabel("Kliknij temat aby zobaczyć szczegóły");
+    QLabel* topicLabel = new QLabel("Click a topic to see details");
     topicLabel->setStyleSheet("font-weight: bold; color: gray;");
 
     QComboBox* formatCombo = new QComboBox;
@@ -395,9 +395,9 @@ int main(int argc, char* argv[]) {
     formatCombo->addItem("Base64", 3);
     formatCombo->setFixedWidth(80);
 
-    QPushButton* copyTopicBtn = new QPushButton("Kopiuj temat");
-    copyTopicBtn->setFixedWidth(95);
-    QPushButton* copyBtn = new QPushButton("Kopiuj");
+    QPushButton* copyTopicBtn = new QPushButton("Copy topic");
+    copyTopicBtn->setFixedWidth(90);
+    QPushButton* copyBtn = new QPushButton("Copy");
     copyBtn->setFixedWidth(70);
 
     detailHeader->addWidget(topicLabel);
@@ -410,7 +410,7 @@ int main(int argc, char* argv[]) {
 
     QPlainTextEdit* payloadView = new QPlainTextEdit;
     payloadView->setReadOnly(true);
-    payloadView->setPlaceholderText("(brak danych)");
+    payloadView->setPlaceholderText("(no data)");
     payloadView->setFont(QFont("Menlo, Monaco, Courier New", 11));
     detailLayout->addWidget(payloadView);
 
@@ -431,7 +431,7 @@ int main(int argc, char* argv[]) {
     histDetail->setMaximumHeight(100);
     histLayout->addWidget(histDetail);
 
-    bottomTabs->addTab(histTab, "Historia");
+    bottomTabs->addTab(histTab, "History");
 
     // ── Publish tab ───────────────────────────────────────────────────────────
     QWidget* publishTab = new QWidget;
@@ -439,14 +439,14 @@ int main(int argc, char* argv[]) {
     pubLayout->setContentsMargins(4, 4, 4, 4);
 
     QHBoxLayout* pubTopicRow = new QHBoxLayout;
-    pubTopicRow->addWidget(new QLabel("Temat:"));
+    pubTopicRow->addWidget(new QLabel("Topic:"));
     QLineEdit* pubTopicEdit = new QLineEdit;
-    pubTopicEdit->setPlaceholderText("np. gateways/11330999/cmd");
+    pubTopicEdit->setPlaceholderText("e.g. gateways/11330999/cmd");
     pubTopicRow->addWidget(pubTopicEdit);
     pubLayout->addLayout(pubTopicRow);
 
     QPlainTextEdit* pubMessageEdit = new QPlainTextEdit;
-    pubMessageEdit->setPlaceholderText("Treść wiadomości...");
+    pubMessageEdit->setPlaceholderText("Message payload...");
     pubMessageEdit->setFont(QFont("Menlo, Monaco, Courier New", 11));
     pubLayout->addWidget(pubMessageEdit);
 
@@ -461,7 +461,7 @@ int main(int argc, char* argv[]) {
     QCheckBox* retainedCheck = new QCheckBox("Retained");
     pubOptionsRow->addWidget(retainedCheck);
     pubOptionsRow->addStretch();
-    QPushButton* publishBtn = new QPushButton("Opublikuj");
+    QPushButton* publishBtn = new QPushButton("Publish");
     pubOptionsRow->addWidget(publishBtn);
     pubLayout->addLayout(pubOptionsRow);
 
@@ -483,16 +483,16 @@ int main(int argc, char* argv[]) {
         return val;
     };
 
-    QLabel* statRx       = makeStat("Odebrano wiadomości:");
-    QLabel* statTx       = makeStat("Wysłano wiadomości:");
-    QLabel* statTopics   = makeStat("Unikalne tematy:");
-    QLabel* statNodes    = makeStat("Węzły w drzewie:");
-    QLabel* statUptime   = makeStat("Czas połączenia:");
-    QLabel* statConnTime = makeStat("Połączono od:");
+    QLabel* statRx       = makeStat("Messages received:");
+    QLabel* statTx       = makeStat("Messages sent:");
+    QLabel* statTopics   = makeStat("Unique topics:");
+    QLabel* statNodes    = makeStat("Tree nodes:");
+    QLabel* statUptime   = makeStat("Uptime:");
+    QLabel* statConnTime = makeStat("Connected since:");
 
     diagLayout->addLayout(diagForm);
     diagLayout->addStretch();
-    bottomTabs->addTab(diagTab, "Diagnostyka");
+    bottomTabs->addTab(diagTab, "Diagnostics");
 
     splitter->addWidget(bottomTabs);
     splitter->setStretchFactor(0, 3);
@@ -500,7 +500,7 @@ int main(int argc, char* argv[]) {
     rootLayout->addWidget(splitter);
 
     window.setCentralWidget(central);
-    window.statusBar()->showMessage("Gotowy");
+    window.statusBar()->showMessage("Ready");
 
     // ── Logic ─────────────────────────────────────────────────────────────────
     QString currentTopic;
@@ -551,7 +551,7 @@ int main(int argc, char* argv[]) {
         topicLabel->setText(topic);
         topicLabel->setStyleSheet("font-weight: bold; color: black;");
         if (raw.isEmpty()) {
-            payloadView->setPlainText("(węzeł bez wiadomości)");
+            payloadView->setPlainText("(node has no messages)");
             return;
         }
         payloadView->setPlainText(formatPayload(raw));
@@ -587,12 +587,12 @@ int main(int argc, char* argv[]) {
     QObject::connect(copyTopicBtn, &QPushButton::clicked, [&]() {
         if (currentTopic.isEmpty()) return;
         QGuiApplication::clipboard()->setText(currentTopic);
-        window.statusBar()->showMessage(QString("Skopiowano temat: %1").arg(currentTopic));
+        window.statusBar()->showMessage(QString("Topic copied: %1").arg(currentTopic));
     });
 
     QObject::connect(copyBtn, &QPushButton::clicked, [&]() {
         QGuiApplication::clipboard()->setText(payloadView->toPlainText());
-        window.statusBar()->showMessage("Skopiowano wiadomość do schowka.");
+        window.statusBar()->showMessage("Message copied to clipboard.");
     });
 
     QObject::connect(tree, &QTreeWidget::itemClicked, [&](QTreeWidgetItem* item, int) {
@@ -611,13 +611,13 @@ int main(int argc, char* argv[]) {
 
     QObject::connect(publishBtn, &QPushButton::clicked, [&]() {
         if (!client || !client->is_connected()) {
-            window.statusBar()->showMessage("Nie połączono z brokerem.");
+            window.statusBar()->showMessage("Not connected to broker.");
             return;
         }
         QString topic   = pubTopicEdit->text().trimmed();
         QString message = pubMessageEdit->toPlainText();
         if (topic.isEmpty()) {
-            window.statusBar()->showMessage("Podaj temat przed publikacją.");
+            window.statusBar()->showMessage("Enter a topic before publishing.");
             return;
         }
         try {
@@ -627,10 +627,10 @@ int main(int argc, char* argv[]) {
             client->publish(msg)->wait();
             ++txCount;
             window.statusBar()->showMessage(
-                QString("Opublikowano na '%1' (QoS %2%3)")
+                QString("Published to '%1' (QoS %2%3)")
                     .arg(topic).arg(qos).arg(retained ? ", retained" : ""));
         } catch (const mqtt::exception& e) {
-            window.statusBar()->showMessage(QString("Błąd publikacji: %1").arg(e.what()));
+            window.statusBar()->showMessage(QString("Publish error: %1").arg(e.what()));
         }
     });
 
@@ -650,8 +650,8 @@ int main(int argc, char* argv[]) {
             try { client->disconnect()->wait(); } catch (...) {}
             client.reset();
             cb.reset();
-            connectBtn->setText("Połącz");
-            window.statusBar()->showMessage("Rozłączono.");
+            connectBtn->setText("Connect");
+            window.statusBar()->showMessage("Disconnected.");
             return;
         }
 
@@ -663,14 +663,14 @@ int main(int argc, char* argv[]) {
         bool    useTls   = tlsCheck->isChecked();
 
         if (addr.isEmpty()) {
-            window.statusBar()->showMessage("Podaj adres brokera.");
+            window.statusBar()->showMessage("Enter broker address.");
             return;
         }
         if (clientId.isEmpty()) clientId = "mqtt_monitor";
 
         connectBtn->setEnabled(false);
         window.statusBar()->showMessage(
-            QString("Łączenie z %1:%2%3...").arg(addr).arg(port).arg(useTls ? " (TLS)" : ""));
+            QString("Connecting to %1:%2%3...").arg(addr).arg(port).arg(useTls ? " (TLS)" : ""));
 
         cb = std::make_unique<TopicTree>(tree);
         cb->reset(addr);
@@ -702,11 +702,11 @@ int main(int argc, char* argv[]) {
                 client->subscribe(t.toStdString(), 0)->wait();
             txCount = 0;
             connectedAt = QDateTime::currentDateTime();
-            connectBtn->setText("Rozłącz");
+            connectBtn->setText("Disconnect");
             window.statusBar()->showMessage(
-                QString("Połączono z %1:%2 — %3 subskrypcji").arg(addr).arg(port).arg(topics.size()));
+                QString("Connected to %1:%2 — %3 subscription(s)").arg(addr).arg(port).arg(topics.size()));
         } catch (const mqtt::exception& e) {
-            window.statusBar()->showMessage(QString("Błąd: %1").arg(e.what()));
+            window.statusBar()->showMessage(QString("Error: %1").arg(e.what()));
             client.reset();
             cb.reset();
         }
@@ -781,59 +781,58 @@ int main(int argc, char* argv[]) {
     });
 
     // ── File menu ─────────────────────────────────────────────────────────────
-    QMenu* fileMenu = window.menuBar()->addMenu("Plik");
+    QMenu* fileMenu = window.menuBar()->addMenu("File");
 
-    QAction* saveAct = fileMenu->addAction("Zapisz profil…");
+    QAction* saveAct = fileMenu->addAction("Save profile…");
     saveAct->setShortcut(QKeySequence::Save);
     QObject::connect(saveAct, &QAction::triggered, [&]() {
         QString path = QFileDialog::getSaveFileName(
-            &window, "Zapisz profil", QDir::homePath(), "JSON (*.json)");
+            &window, "Save profile", QDir::homePath(), "JSON (*.json)");
         if (path.isEmpty()) return;
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly)) {
-            QMessageBox::warning(&window, "Błąd", "Nie można zapisać pliku.");
+            QMessageBox::warning(&window, "Error", "Cannot save file.");
             return;
         }
         f.write(QJsonDocument(collectJson()).toJson());
-        window.statusBar()->showMessage(QString("Zapisano: %1").arg(path));
+        window.statusBar()->showMessage(QString("Saved: %1").arg(path));
     });
 
-    QAction* loadAct = fileMenu->addAction("Wczytaj profil…");
+    QAction* loadAct = fileMenu->addAction("Load profile…");
     loadAct->setShortcut(QKeySequence::Open);
     QObject::connect(loadAct, &QAction::triggered, [&]() {
         QString path = QFileDialog::getOpenFileName(
-            &window, "Wczytaj profil", QDir::homePath(), "JSON (*.json)");
+            &window, "Load profile", QDir::homePath(), "JSON (*.json)");
         if (path.isEmpty()) return;
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly)) {
-            QMessageBox::warning(&window, "Błąd", "Nie można otworzyć pliku.");
+            QMessageBox::warning(&window, "Error", "Cannot open file.");
             return;
         }
         QJsonParseError err;
         auto doc = QJsonDocument::fromJson(f.readAll(), &err);
         if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-            QMessageBox::warning(&window, "Błąd", "Nieprawidłowy plik JSON.");
+            QMessageBox::warning(&window, "Error", "Invalid JSON file.");
             return;
         }
         applyJson(doc.object());
-        window.statusBar()->showMessage(QString("Wczytano: %1").arg(path));
+        window.statusBar()->showMessage(QString("Loaded: %1").arg(path));
     });
 
     fileMenu->addSeparator();
 
-    // Export all received messages
-    QAction* exportCsvAct = fileMenu->addAction("Eksportuj wiadomości (CSV)…");
+    QAction* exportCsvAct = fileMenu->addAction("Export messages (CSV)…");
     QObject::connect(exportCsvAct, &QAction::triggered, [&]() {
         if (!cb) {
-            window.statusBar()->showMessage("Brak danych do eksportu.");
+            window.statusBar()->showMessage("No data to export.");
             return;
         }
         QString path = QFileDialog::getSaveFileName(
-            &window, "Eksportuj CSV", QDir::homePath(), "CSV (*.csv)");
+            &window, "Export CSV", QDir::homePath(), "CSV (*.csv)");
         if (path.isEmpty()) return;
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QMessageBox::warning(&window, "Błąd", "Nie można zapisać pliku.");
+            QMessageBox::warning(&window, "Error", "Cannot save file.");
             return;
         }
         QTextStream out(&f);
@@ -844,21 +843,21 @@ int main(int argc, char* argv[]) {
             out << QString("\"%1\",\"%2\",%3,\"%4\"\n")
                 .arg(ts).arg(topic).arg(retained ? 1 : 0).arg(safe);
         }
-        window.statusBar()->showMessage(QString("Wyeksportowano: %1").arg(path));
+        window.statusBar()->showMessage(QString("Exported: %1").arg(path));
     });
 
-    QAction* exportJsonAct = fileMenu->addAction("Eksportuj wiadomości (JSON)…");
+    QAction* exportJsonAct = fileMenu->addAction("Export messages (JSON)…");
     QObject::connect(exportJsonAct, &QAction::triggered, [&]() {
         if (!cb) {
-            window.statusBar()->showMessage("Brak danych do eksportu.");
+            window.statusBar()->showMessage("No data to export.");
             return;
         }
         QString path = QFileDialog::getSaveFileName(
-            &window, "Eksportuj JSON", QDir::homePath(), "JSON (*.json)");
+            &window, "Export JSON", QDir::homePath(), "JSON (*.json)");
         if (path.isEmpty()) return;
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly)) {
-            QMessageBox::warning(&window, "Błąd", "Nie można zapisać pliku.");
+            QMessageBox::warning(&window, "Error", "Cannot save file.");
             return;
         }
         QJsonArray arr;
@@ -871,28 +870,28 @@ int main(int argc, char* argv[]) {
             });
         }
         f.write(QJsonDocument(arr).toJson());
-        window.statusBar()->showMessage(QString("Wyeksportowano: %1").arg(path));
+        window.statusBar()->showMessage(QString("Exported: %1").arg(path));
     });
 
-    QMenu* helpMenu = window.menuBar()->addMenu("Pomoc");
-    QAction* aboutAct = helpMenu->addAction("O programie…");
+    QMenu* helpMenu = window.menuBar()->addMenu("Help");
+    QAction* aboutAct = helpMenu->addAction("About…");
     QObject::connect(aboutAct, &QAction::triggered, [&]() {
         QMessageBox about(&window);
-        about.setWindowTitle("O programie");
+        about.setWindowTitle("About MQTT Monitor");
         about.setIconPixmap(QApplication::style()
             ->standardIcon(QStyle::SP_ComputerIcon)
             .pixmap(48, 48));
         about.setText("<b>MQTT Monitor</b>");
         about.setInformativeText(
-            "Wersja 1.0<br>"
-            "Narzędzie do monitorowania i debugowania wiadomości MQTT.<br><br>"
-            "Funkcje:<br>"
-            "• Drzewo tematów z historią wiadomości<br>"
-            "• Podgląd w formacie Raw, JSON, Hex, Base64<br>"
-            "• Publikowanie z wyborem QoS i flagi Retained<br>"
-            "• Obsługa TLS/SSL<br>"
-            "• Eksport wiadomości do CSV i JSON<br><br>"
-            "Zbudowany z Qt6 i Paho MQTT C++.<br>"
+            "Version 1.0<br>"
+            "A tool for monitoring and debugging MQTT messages.<br><br>"
+            "Features:<br>"
+            "• Topic tree with per-topic message history<br>"
+            "• Payload view: Raw, JSON, Hex, Base64<br>"
+            "• Publish with QoS and Retained flag<br>"
+            "• TLS/SSL support<br>"
+            "• Export messages to CSV and JSON<br><br>"
+            "Built with Qt6 and Paho MQTT C++.<br>"
             "<a href='https://github.com/mcrTechLab'>github.com/mcrTechLab</a>"
         );
         about.setTextFormat(Qt::RichText);

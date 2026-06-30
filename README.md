@@ -47,9 +47,9 @@ cmake --build build --target dmg
 
 ## Usage
 
-1. Enter broker address, port and optional credentials in the **Połączenie** tab
-2. Add topic filters in the **Subskrypcje** tab (default: `#`)
-3. Click **Połącz** — the topic tree populates as messages arrive
+1. Enter broker address, port and optional credentials in the **Connection** tab
+2. Add topic filters in the **Subscriptions** tab (default: `#`)
+3. Click **Connect** — the topic tree populates as messages arrive
 4. Click any topic to see the current payload and message history
 5. Use the **Publish** tab to send messages to any topic
 
@@ -59,7 +59,7 @@ Check the **TLS** box before connecting. The port switches automatically to 8883
 
 ### Export
 
-**Plik → Eksportuj wiadomości (CSV)** or **(JSON)** saves all messages received in the current session.
+**File → Export messages (CSV)** or **(JSON)** saves all messages received in the current session.
 
 ## Project structure
 
