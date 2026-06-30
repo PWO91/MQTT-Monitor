@@ -31,6 +31,7 @@
 #include <QSpinBox>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QStyle>
 #include <QStringList>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
@@ -232,6 +233,7 @@ int main(int argc, char* argv[]) {
     // ── Top tabs ────────────────────────────────────────────────────────────
     QTabWidget* topTabs = new QTabWidget;
     topTabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    topTabs->setMaximumHeight(80);
 
     // Tab: Połączenie
     QWidget* connTab = new QWidget;
@@ -284,7 +286,7 @@ int main(int argc, char* argv[]) {
     subLayout->setContentsMargins(4, 4, 4, 4);
 
     QListWidget* subList = new QListWidget;
-    subList->setFixedHeight(72);
+    subList->setFixedHeight(42);
     subList->addItem("#");
     subLayout->addWidget(subList);
 
@@ -775,7 +777,29 @@ int main(int argc, char* argv[]) {
     });
 
     QMenu* helpMenu = window.menuBar()->addMenu("Pomoc");
-    Q_UNUSED(helpMenu)
+    QAction* aboutAct = helpMenu->addAction("O programie…");
+    QObject::connect(aboutAct, &QAction::triggered, [&]() {
+        QMessageBox about(&window);
+        about.setWindowTitle("O programie");
+        about.setIconPixmap(QApplication::style()
+            ->standardIcon(QStyle::SP_ComputerIcon)
+            .pixmap(48, 48));
+        about.setText("<b>MQTT Monitor</b>");
+        about.setInformativeText(
+            "Wersja 1.0<br>"
+            "Narzędzie do monitorowania i debugowania wiadomości MQTT.<br><br>"
+            "Funkcje:<br>"
+            "• Drzewo tematów z historią wiadomości<br>"
+            "• Podgląd w formacie Raw, JSON, Hex, Base64<br>"
+            "• Publikowanie z wyborem QoS i flagi Retained<br>"
+            "• Obsługa TLS/SSL<br>"
+            "• Eksport wiadomości do CSV i JSON<br><br>"
+            "Zbudowany z Qt6 i Paho MQTT C++.<br>"
+            "<a href='https://github.com/mcrTechLab'>github.com/mcrTechLab</a>"
+        );
+        about.setTextFormat(Qt::RichText);
+        about.exec();
+    });
 
     window.show();
     return app.exec();
